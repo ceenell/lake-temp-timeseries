@@ -8,11 +8,10 @@ theme_lakes <- function(font_fam = "Source Sans Pro"){
     legend.position = c(0.15, 0.1),
     #legend.position = "top",
     axis.text = element_text(face = "italic", size = 12),
-    legend.text = element_text(size = 20, family = "Source Sans Pro"),
+    legend.text = element_text(size = 20, family = font_fam),
     plot.background = element_rect(fill = "white", color = NA),
-    plot.title = element_text(face="bold", size = 50, family = "Source Sans Pro"),
-    plot.subtitle = element_text(size = 40, family = "Source Sans Pro")
-    # data from: 
+    plot.title = element_text(face="bold", size = 50, family = font_fam),
+    plot.subtitle = element_text(size = 40, family = font_fam)
   ) 
 }
 get_usa <- function(proj){
