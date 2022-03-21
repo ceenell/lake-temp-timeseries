@@ -3,11 +3,10 @@ library(tidyverse)
 library(ncdf4)
 library(sf)
 library(lubridate)
-library(magick)
 library(maps)
 library(showtext)
 
-options(tidyverse.quiet = TRUE, showtext.quiet = TRUE)
+options(tidyverse.quiet = TRUE)
 
 source("src/data_utils.R")
 source("src/plot_utils.R")
@@ -46,24 +45,20 @@ list(
     get_usa(proj)
   ),
   tar_target(
-    temp_pngs, # create frames
+    lake_temp_pngs, # create frames
     plot_lake_temp(temp_data, 
                    time = date_list,
                    usa_sf,
-                   file_out = sprintf('out/lake_plot_%s.png', date_list),
+                   file_out = sprintf('out/lake_temp_%s.png', date_list),
                    pal = "magma",
                    label_date = ""),
     pattern = map(temp_data, date_list),
     format = "file"
   ),
   tar_target(
-    temp_pngs_ordered, # compress
-    resize_pngs(temp_pngs)
-  ),
-  tar_target(
-    temp_2020_gif,
+    lake_temp_2020_gif, # animate frames
     combine_animation_frames_gif(
-      out_file = 'out/temp_2020.gif',
+      out_file = 'out/lake_temp_2020.gif',
       frame_delay_cs = 14, 
       frame_rate = 50
     )
