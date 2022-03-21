@@ -22,7 +22,7 @@ get_usa <- function(proj){
 }
 plot_lake_temp <- function(temp_data, time, usa_sf, file_out, pal, label_date){
 
-  year <- word(time, 1, 1, sep='-')
+  #year <- word(time, 1, 1, sep='-')
   
   ggplot() +
     geom_sf(data = usa_sf,
@@ -37,11 +37,50 @@ plot_lake_temp <- function(temp_data, time, usa_sf, file_out, pal, label_date){
       option = pal,
       limits = c(0, 35),
       "Degrees (C)"
-      #sprintf("Lake surface temperature         \nJuly 1st, %s", year)
       ) +
     theme_lakes()  +
     coord_sf(label_axes = list(bottom = "E", right = "N")) +
     ggtitle("Surface temperatures for 185,549 lakes",
+            subtitle = sprintf("%s", time)) +
+    guides(color = guide_colorbar(
+      direction = "horizontal",
+      barwidth = 20, 
+      barheight =  0.8,
+      label.position = "bottom",
+      title.position = "top",
+      title.theme = element_text(family = "Source Sans Pro", 
+                                 #face = "bold", 
+                                 size = 30, 
+                                 lineheight = 0.7
+      )
+    ))
+  
+  dpi <- 100
+  ggsave(file_out, width = 14*dpi, height = 10*dpi, units = 'px', dpi = dpi)
+}
+plot_max_temp <- function(temp_data, time, usa_sf, file_out, pal, label_date, temp_range){
+  
+  #year <- word(time, 1, 1, sep='-')
+  year <- time
+
+  
+  ggplot() +
+    geom_sf(data = usa_sf,
+            fill = "white",
+            color = "grey" 
+    ) +
+    geom_sf(data = temp_data, 
+            size = 0.2, 
+            aes(color = max_temp)
+    ) + 
+    scale_color_viridis_c(
+      option = pal,
+      limits = temp_range,
+      "Degrees (C)"
+    ) +
+    theme_lakes()  +
+    coord_sf(label_axes = list(bottom = "E", right = "N")) +
+    ggtitle("Max surface temperatures for 185,549 lakes",
             subtitle = sprintf("%s, %s", label_date, year)) +
     guides(color = guide_colorbar(
       direction = "horizontal",
@@ -59,56 +98,35 @@ plot_lake_temp <- function(temp_data, time, usa_sf, file_out, pal, label_date){
   dpi <- 100
   ggsave(file_out, width = 14*dpi, height = 10*dpi, units = 'px', dpi = dpi)
 }
-animate_frames <- function(frame_pngs, frame_length, file_out){
-  frame_pngs %>%
-    image_read() %>%
-    image_join() %>%
-    image_animate(
-      delay = 100, 
-      optimize = TRUE,
-      #fps = 2
-      ) %>%
-    image_write(file_out)
-}
-resize_pngs <- function(temp_pngs){
-  tmp_dir <- 'tmp'
+
+combine_animation_frames_gif <- function(out_file, frame_delay_cs, frame_rate) {
+  # modified from https://github.com/USGS-VIZLAB/gage-conditions-gif/blob/main/6_visualize/src/combine_animation_frames.R
+  
+  #build gif from pngs with magick and simplify with gifsicle
+  #note that this will use all frames in tmp
+  png_files <- list.files('tmp', pattern = "*.png", full.names = TRUE)
+  tmp_dir <- 'tmp/magick'
   if(!dir.exists(tmp_dir)) dir.create(tmp_dir)
   
   # Resize to more reasonable resolutions for a gif
-  file.copy(from = temp_pngs, to = tmp_dir)
-  moved_pngs <- gsub('6_visualize/out', tmp_dir, temp_pngs)
+  file.copy(from = png_files, to = tmp_dir)
+  moved_pngs <- gsub('tmp', tmp_dir, png_files)
   lapply(moved_pngs, function(fn) {
     system(sprintf('magick convert %s -resize 800x572 %s', fn, fn))
   })
-  return(moved_pngs)
+  
+  png_str <- paste(moved_pngs, collapse=' ')
+  # create gif using magick
+  magick_command <- sprintf(
+    'convert -define registry:temporary-path=%s -limit memory 24GiB -delay %d -loop 0 %s %s',
+    tmp_dir, frame_delay_cs, png_str, out_file)
+  if(Sys.info()[['sysname']] == "Windows") {
+    magick_command <- sprintf('magick %s', magick_command)
+  }
+  system(magick_command)
+  
+  # simplify the gif with gifsicle - cuts size by about 2/3
+  gifsicle_command <- sprintf('gifsicle -b -O3 -d %s --colors 256 %s',
+                              frame_delay_cs, out_file)
+  system(gifsicle_command)
 }
-#combine_animation_frames_gif <- function(out_file, animation_cfg) {
-#  # https://github.com/USGS-VIZLAB/gage-conditions-gif/blob/main/6_visualize/src/combine_animation_frames.R
-#  #build gif from pngs with magick and simplify with gifsicle
-#  #note that this will use all frames in 6_visualize/tmp
-#  png_files <- list.files('6_visualize/tmp', pattern = "*.png", full.names = TRUE)
-#  tmp_dir <- '6_visualize/tmp/magick'
-#  if(!dir.exists(tmp_dir)) dir.create(tmp_dir)
-#  
-#  # Resize to more reasonable resolutions for a gif
-#  file.copy(from = png_files, to = tmp_dir)
-#  moved_pngs <- gsub('6_visualize/tmp', tmp_dir, png_files)
-#  lapply(moved_pngs, function(fn) {
-#    system(sprintf('magick convert %s -resize 1200x675 %s', fn, fn))
-#  })
-#  
-#  png_str <- paste(moved_pngs, collapse=' ')
-#  # create gif using magick
-#  magick_command <- sprintf(
-#    'convert -define registry:temporary-path=%s -limit memory 24GiB -delay %d -loop 0 %s %s',
-#    tmp_dir, animation_cfg$frame_delay_cs, png_str, out_file)
-#  if(Sys.info()[['sysname']] == "Windows") {
-#    magick_command <- sprintf('magick %s', magick_command)
-#  }
-#  system(magick_command)
-#  
-#  # simplify the gif with gifsicle - cuts size by about 2/3
-#  gifsicle_command <- sprintf('gifsicle -b -O3 -d %s --colors 256 %s',
-#                              animation_cfg$frame_delay_cs, out_file)
-#  system(gifsicle_command)
-#}
